@@ -35,7 +35,7 @@ app.put("/notes/:notesID", (req, res) => {
 
 
 app.get("/notes/:notesID", (req, res) => {
-    const { notesID } = req.body;
+    const notesID = req.params;
     getDataFromDatabase(notesID, (data) => {
         res.status(200).send(data);
     });
