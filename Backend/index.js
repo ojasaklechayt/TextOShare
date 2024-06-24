@@ -19,16 +19,14 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 
 app.post("/notes/:notesID", (req, res) => {
-    const { notesID } = req.params;
-    const { note } = req.body;
+    const { notesID, note } = req.body;
     const time = new Date().toISOString();
     writeUserData(notesID, note, time);
     res.status(200).send(`User data for user ${notesID} written to the database successfully`);
 });
 
 app.put("/notes/:notesID", (req, res) => {
-    const { notesID } = req.params;
-    const { note } = req.body;
+    const { notesID, note } = req.body;
     const time = new Date().toISOString();
     const updatedFields = { note, time };
     updateData(notesID, updatedFields);
@@ -37,7 +35,7 @@ app.put("/notes/:notesID", (req, res) => {
 
 
 app.get("/notes/:notesID", (req, res) => {
-    const { notesID } = req.params;
+    const { notesID } = req.body;
     getDataFromDatabase(notesID, (data) => {
         res.status(200).send(data);
     });
