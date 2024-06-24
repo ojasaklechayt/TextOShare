@@ -60,10 +60,6 @@ export function TextSpace() {
         body: JSON.stringify({ note: text, notesID: id }),
       });
 
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-
       const data = await response.json();
       console.log('Response:', data);
       toast.success('Successfully updated!', {
