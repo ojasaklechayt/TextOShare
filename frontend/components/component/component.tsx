@@ -18,7 +18,7 @@ export function Component() {
   const [randomId, setRandomId] = useState('');
 
   const handleClick = () => {
-    const id = generateRandomId(6); 
+    const id = generateRandomId(12); 
     setRandomId(id);
     router.push(`/${id}`);
   };
