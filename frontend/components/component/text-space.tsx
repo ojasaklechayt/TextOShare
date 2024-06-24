@@ -9,13 +9,20 @@ import 'react-toastify/dist/ReactToastify.css';
 export function TextSpace() {
   const [text, setText] = useState('');
   const { id } = useParams();
+  console.log(id);
   const [copied, setCopied] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchTextById = async () => {
       try {
-        const response = await fetch(`${process.env.API_ROUTE}${id}`);
+        const response = await fetch(`${process.env.API_ROUTE}${id}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ notesID: id }),
+        });
         if (!response.ok) {
           throw new Error('Failed to fetch text');
         }
@@ -32,7 +39,7 @@ export function TextSpace() {
     if (id) {
       fetchTextById();
     }
-  }, [id]);
+  }, [id, text]);
 
   const handlechange = (event: { target: { value: SetStateAction<string>; }; }) => {
     setText(event.target.value);
@@ -55,7 +62,7 @@ export function TextSpace() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ note: text }),
+        body: JSON.stringify({ note: text, notesID: id }),
       });
 
       if (!response.ok) {
@@ -88,7 +95,7 @@ export function TextSpace() {
         draggable: true,
         progress: undefined,
       });
-      
+
       setTimeout(() => {
         setSubmitting(false);
       }, 5000);
