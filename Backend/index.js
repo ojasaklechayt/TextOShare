@@ -1,42 +1,45 @@
 const express = require("express");
 const cors = require('cors');
-const morgan = require('morgan');
-const rateLimit = require('express-rate-limit');
 const compression = require('compression');
+const bodyParser = require('body-parser');
 const { writeUserData, getDataFromDatabase, getAllData, updateData } = require("./database-functions");
 
 const app = express();
 const port = 3000;
 
-app.use(morgan('combined'));
-app.use(rateLimit({
-    windowMs: 15 * 60 * 1000, 
-    max: 100
-}));
 app.use(compression());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 app.use(cors());
+app.use(bodyParser.json());
 
-app.post("/notes/:notesID", (req, res) => {
+app.post("/notes/:notesID", async (req, res) => {
     const { notesID, note } = req.body;
     const time = new Date().toISOString();
-    writeUserData(notesID, note, time);
-    res.status(200).send(`User data for user ${notesID} written to the database successfully`);
+    try {
+        await writeUserData(notesID, note, time);
+        res.status(200).send(`User data for user ${notesID} written to the database successfully`);
+    } catch (error) {
+        res.status(500).send("Error writing data to the database");
+    }
 });
 
-app.put("/notes/:notesID", (req, res) => {
+app.put("/notes/:notesID", async (req, res) => {
     const { notesID, note } = req.body;
     const time = new Date().toISOString();
     const updatedFields = { note, time };
-    updateData(notesID, updatedFields);
-    res.status(200).send(`User data for user ${notesID} updated successfully`);
+    try {
+        await updateData(notesID, updatedFields);
+        res.status(200).send(`User data for user ${notesID} updated successfully`);
+    } catch (error) {
+        res.status(500).send("Error updating data in the database");
+    }
 });
-
 
 app.get("/notes/:notesID", (req, res) => {
     const notesID = req.params.notesID;
     getDataFromDatabase(notesID, (data) => {
+        if (!data) {
+            return res.status(404).send(`No data found for user ${notesID}`);
+        }
         res.status(200).send(data);
     });
 });

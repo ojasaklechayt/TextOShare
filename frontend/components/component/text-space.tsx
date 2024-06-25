@@ -3,7 +3,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useParams } from 'next/navigation';
 import { JSX, SVGProps, SetStateAction, useEffect, useState } from "react";
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 import 'react-toastify/dist/ReactToastify.css';
 
 export function TextSpace() {
@@ -24,7 +24,7 @@ export function TextSpace() {
 
         const data = await response.json();
         setText(data.note);
-        console.log('Fetched text:',  data.note);
+        console.log('Fetched text:', data.note);
       } catch (error) {
         toast.error('Failed to fetch text.');
         console.error('Error fetching text:', error);
@@ -41,85 +41,51 @@ export function TextSpace() {
   }
 
   const handlePostRequest = async () => {
+    setSubmitting(true);
+
+    const datajson = JSON.stringify({ note: text, notesID: id });
+    console.log(datajson);
+
     try {
-      setSubmitting(true);
-
-      let method = 'POST';
-      let endpoint = `${process.env.API_ROUTE}${id}`;
-      const existingText = text.trim();
-
-      if (existingText) {
-        method = 'PUT';
-      }
-
-      const response = await fetch(endpoint, {
-        method,
+      const response = await fetch(`${process.env.API_ROUTE}${id}`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ note: text, notesID: id }),
+        body: datajson,
       });
 
-      const data = await response.json();
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('Error Response:', errorData);
+        toast.error('Error Posting Task');
+        throw new Error('Error Posting Task');
+      }
+
+      const data = await response.text();
       console.log('Response:', data);
-      toast.success('Successfully updated!', {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-      });
-
-      setTimeout(() => {
-        setSubmitting(false);
-      }, 5000);
+      toast.success('Successful!');
+      return data;
     } catch (error) {
+      toast.error('Error Posting');
       console.error('Error:', error);
-      toast.error('Failed to update. Please try again later.', {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-      });
-
-      setTimeout(() => {
-        setSubmitting(false);
-      }, 5000);
+      throw error;
+    } finally {
+      setSubmitting(false);
     }
   };
 
+
   const copyLinkToClipboard = () => {
     const url = `${window.location.origin}/${id}`;
-
     navigator.clipboard.writeText(url)
       .then(() => {
         setCopied(true);
-        toast.success('Link copied to clipboard!', {
-          position: "top-right",
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-          progress: undefined,
-        });
+        toast.success('Link copied to clipboard!');
       })
       .catch(err => {
         console.error('Failed to copy:', err);
-        toast.error('Failed to copy link.', {
-          position: "top-right",
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-          progress: undefined,
-        });
+        toast.error('Failed to copy link.');
       });
 
     setTimeout(() => {

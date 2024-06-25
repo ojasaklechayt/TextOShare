@@ -1,7 +1,7 @@
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { ReactNode } from 'react'
-import { ToastContainer } from 'react-toastify'
+import { Toaster } from 'react-hot-toast';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -17,8 +17,8 @@ export default function Layout({ children }: LayoutProps) {
   return (
     <html lang="en">
       <body className={inter.variable}>
+        <Toaster />
         {children}
-        <ToastContainer position="top-right" autoClose={3000} hideProgressBar newestOnTop closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
       </body>
     </html>
   )
