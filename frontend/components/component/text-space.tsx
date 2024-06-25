@@ -16,15 +16,24 @@ export function TextSpace() {
   useEffect(() => {
     const fetchTextById = async () => {
       try {
-        const response = await fetch(`${process.env.API_ROUTE}${notesID}`);
+        const response = await fetch(`${process.env.API_ROUTE}${id}`);
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch text');
+        if (response.status === 404) {
+          return;
         }
 
         const data = await response.json();
+
+        if (!data || !data.note) {
+          console.log('Empty or null response received.');
+          return;
+        }
+        
         setText(data.note);
         console.log('Fetched text:', data.note);
+        
+
+
       } catch (error) {
         toast.error('Failed to fetch text.');
         console.error('Error fetching text:', error);
@@ -43,17 +52,31 @@ export function TextSpace() {
   const handlePostRequest = async () => {
     setSubmitting(true);
 
-    const datajson = JSON.stringify({ note: text, notesID: id });
+    const datajson = JSON.stringify({ notesID: id, note: text });
     console.log(datajson);
 
     try {
-      const response = await fetch(`${process.env.API_ROUTE}${id}`, {
-        method: 'PUT',
+      const checkResponse = await fetch(`${process.env.API_ROUTE}${id}`);
+      let Method = 'POST';
+      let url = `${process.env.API_ROUTE}${id}`;
+
+      if (checkResponse.status === 404) {
+        return;
+      }
+
+      if (checkResponse.status == 200) {
+        Method = 'PUT';
+      }
+
+      const requestOptions = {
+        method: Method,
         headers: {
           'Content-Type': 'application/json',
         },
         body: datajson,
-      });
+      };
+
+      const response = await fetch(url, requestOptions);
 
       if (!response.ok) {
         const errorData = await response.text();

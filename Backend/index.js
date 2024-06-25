@@ -15,7 +15,7 @@ app.post("/notes/:notesID", async (req, res) => {
     const { notesID, note } = req.body;
     const time = new Date().toISOString();
     try {
-        await writeUserData(notesID, note, time);
+        writeUserData(notesID, note, time);
         res.status(200).send(`User data for user ${notesID} written to the database successfully`);
     } catch (error) {
         res.status(500).send("Error writing data to the database");
@@ -25,9 +25,8 @@ app.post("/notes/:notesID", async (req, res) => {
 app.put("/notes/:notesID", async (req, res) => {
     const { notesID, note } = req.body;
     const time = new Date().toISOString();
-    const updatedFields = { note, time };
     try {
-        await updateData(notesID, updatedFields);
+        await updateData(notesID, note, time);
         res.status(200).send(`User data for user ${notesID} updated successfully`);
     } catch (error) {
         res.status(500).send("Error updating data in the database");

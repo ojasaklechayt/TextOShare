@@ -31,11 +31,11 @@ function getAllData(updateStarCount) {
     });
 }
 
-async function updateData(notesID, updatedFields) {
+async function updateData(notesID, note, time) {
     const db = database;
     const updates = {};
-    updates[`/notes/${notesID}/note`] = updatedFields.note;
-    updates[`/notes/${notesID}/time`] = updatedFields.time;
+    updates[`/notes/${notesID}/note`] = note;
+    updates[`/notes/${notesID}/time`] = time;
 
     try {
         await update(ref(db), updates);
