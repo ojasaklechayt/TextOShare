@@ -1,189 +1,186 @@
-'use client'
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { useParams } from 'next/navigation';
-import { JSX, SVGProps, SetStateAction, useEffect, useState } from "react";
+'use client';
+
+import { useEffect, useState, useCallback } from 'react';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
 import { toast } from 'react-hot-toast';
-import 'react-toastify/dist/ReactToastify.css';
+import debounce from 'lodash/debounce';
+import { useParams } from 'next/navigation';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+interface Note {
+  note: string;
+  timestamp: string;
+}
+
+interface APIError {
+  error: string;
+}
 
 export function TextSpace() {
+  const params = useParams();
+  const id = params?.id as string;
   const [text, setText] = useState('');
-  const { id } = useParams();
-  const [notesID, setNotesID] = useState(id);
   const [copied, setCopied] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchTextById = async () => {
+  // Create a debounced version of the save function
+  const debouncedSave = useCallback(
+    debounce(async (noteId: string, newText: string) => {
       try {
-        const response = await fetch(`${process.env.API_ROUTE}${id}`);
-
-        if (response.status === 404) {
-          return;
-        }
+        const response = await fetch(`${API_BASE_URL}/notes/${noteId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ note: newText }),
+        });
 
         const data = await response.json();
 
-        if (!data || !data.note) {
-          console.log('Empty or null response received.');
-          return;
+        if (!response.ok) {
+          const errorData = data as APIError;
+          throw new Error(errorData.error || 'Failed to save changes');
         }
-        
-        setText(data.note);
-        console.log('Fetched text:', data.note);
-        
-
-
       } catch (error) {
-        toast.error('Failed to fetch text.');
-        console.error('Error fetching text:', error);
+        if (error instanceof Error) {
+          toast.error(error.message);
+        } else {
+          toast.error('Failed to save changes');
+        }
+      }
+    }, 1000),
+    []
+  );
+
+  // Fetch note data
+  useEffect(() => {
+    const fetchNote = async () => {
+      if (!id) return;
+
+      try {
+        setIsLoading(true);
+        const response = await fetch(`${API_BASE_URL}/notes/${id}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          const errorData = data as APIError;
+          throw new Error(errorData.error || 'Failed to load note');
+        }
+
+        const noteData = data as Note;
+        setText(noteData.note || '');
+      } catch (error) {
+        if (error instanceof Error) {
+          toast.error(error.message);
+        } else {
+          toast.error('Failed to load note');
+        }
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    if (id) {
-      fetchTextById();
-    }
-  }, [id, notesID]);
+    fetchNote();
+  }, [id]);
 
-  const handlechange = (event: { target: { value: SetStateAction<string>; }; }) => {
-    setText(event.target.value);
+  const handleTextChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newText = event.target.value;
+    setText(newText);
+
+    if (id) {
+      debouncedSave(id, newText);
+    }
+  };
+
+  const copyLink = async () => {
+    if (!id) return;
+
+    const url = `${window.location.origin}/${id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      toast.success('Link copied!');
+      setTimeout(() => setCopied(false), 3000);
+    } catch {
+      toast.error('Failed to copy link');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white" />
+      </div>
+    );
   }
 
-  const handlePostRequest = async () => {
-    setSubmitting(true);
-
-    const datajson = JSON.stringify({ notesID: id, note: text });
-    console.log(datajson);
-
-    try {
-      const checkResponse = await fetch(`${process.env.API_ROUTE}${id}`);
-      let Method = 'POST';
-      let url = `${process.env.API_ROUTE}${id}`;
-
-      if (checkResponse.status === 404) {
-        return;
-      }
-
-      if (checkResponse.status == 200) {
-        Method = 'PUT';
-      }
-
-      const requestOptions = {
-        method: Method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: datajson,
-      };
-
-      const response = await fetch(url, requestOptions);
-
-      if (!response.ok) {
-        const errorData = await response.text();
-        console.error('Error Response:', errorData);
-        toast.error('Error Posting Task');
-        throw new Error('Error Posting Task');
-      }
-
-      const data = await response.text();
-      console.log('Response:', data);
-      toast.success('Successful!');
-      return data;
-    } catch (error) {
-      toast.error('Error Posting');
-      console.error('Error:', error);
-      throw error;
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-
-  const copyLinkToClipboard = () => {
-    const url = `${window.location.origin}/${id}`;
-    navigator.clipboard.writeText(url)
-      .then(() => {
-        setCopied(true);
-        toast.success('Link copied to clipboard!');
-      })
-      .catch(err => {
-        console.error('Failed to copy:', err);
-        toast.error('Failed to copy link.');
-      });
-
-    setTimeout(() => {
-      setCopied(false);
-    }, 5000);
-  };
-
   return (
-    <div className="flex flex-col h-screen">
-      <div className="flex-1 flex items-center justify-center">
+    <div className="flex flex-col h-screen bg-[#0F2027]">
+      <div className="flex-1 flex items-center justify-center p-4">
         <Textarea
           placeholder="Start typing..."
-          className="w-full max-w-3xl text-2xl md:text-3xl font-medium bg-transparent border-none outline-none resize-none"
+          className="w-full max-w-3xl text-2xl md:text-3xl font-medium bg-transparent border-none outline-none resize-none text-white"
           rows={20}
           value={text}
-          onChange={handlechange}
-        ></Textarea>
+          onChange={handleTextChange}
+        />
       </div>
-      <div className="bg-black border-t px-4 py-3 flex items-center justify-between gap-4 md:px-6 md:py-4">
-        <Button className="bg-black text-white border border-gray-300 rounded hover:bg-gray-300 hover:text-black hover:border-gray-300"
-          onClick={copyLinkToClipboard}>
-          <ShareIcon className="w-5 h-5 mr-2" />
+      <div className="bg-black border-t border-gray-800 px-4 py-3 flex items-center justify-between gap-4 md:px-6 md:py-4">
+        <Button
+          onClick={copyLink}
+          disabled={isLoading || !id}
+          variant="outline"
+          className="bg-transparent text-white border-gray-700 hover:bg-gray-800 hover:text-white transition-colors"
+        >
           {copied ? (
-            "Link copied!"
+            <span className="flex items-center">
+              <CheckIcon className="w-4 h-4 mr-2" />
+              Copied!
+            </span>
           ) : (
-            "Share Link"
+            <span className="flex items-center">
+              <ShareIcon className="w-4 h-4 mr-2" />
+              Share Link
+            </span>
           )}
-        </Button>
-        <Button className="bg-white text-black border border-gray-300 rounded hover:bg-gray-300 hover:text-white hover:border-gray-300"
-          onClick={handlePostRequest} >
-          <SendIcon className="w-5 h-5 mr-2" />
-          {submitting ? "Submitting..." : "Submit"}
         </Button>
       </div>
     </div>
   );
 }
 
-function SendIcon(props: JSX.IntrinsicAttributes & SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m22 2-7 20-4-9-9-4Z" />
-      <path d="M22 2 11 13" />
-    </svg>
-  );
-}
+const ShareIcon = ({ className = "" }) => (
+  <svg
+    className={className}
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+    <polyline points="16 6 12 2 8 6" />
+    <line x1="12" y1="2" x2="12" y2="15" />
+  </svg>
+);
 
-function ShareIcon(props: JSX.IntrinsicAttributes & SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-      <polyline points="16 6 12 2 8 6" />
-      <line x1="12" x2="12" y1="2" y2="15" />
-    </svg>
-  );
-}
+const CheckIcon = ({ className = "" }) => (
+  <svg
+    className={className}
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
