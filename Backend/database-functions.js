@@ -1,48 +1,88 @@
 const { ref, set, onValue, update } = require("firebase/database");
 const { database } = require('./firebase');
+const { validateNote, validateNotesID } = require('./validators');
 
-function writeUserData(notesID, note, time) {
-    set(ref(database, `notes/${notesID}`), {
-        notesID: notesID,
-        note: note,
-        time: time
-    }).catch(error => {
-        console.error("Error writing data:", error);
+class DatabaseError extends Error {
+    constructor(message, statusCode = 500) {
+        super(message);
+        this.name = 'DatabaseError';
+        this.statusCode = statusCode;
+    }
+}
+
+async function writeUserData(notesID, note, time) {
+    try {
+        validateNotesID(notesID);
+        validateNote(note);
+
+        await set(ref(database, `notes/${notesID}`), {
+            notesID,
+            note,
+            time,
+            lastUpdated: Date.now()
+        });
+        return { success: true };
+    } catch (error) {
+        throw new DatabaseError(error.message, 500);
+    }
+}
+
+function getDataFromDatabase(notesID) {
+    return new Promise((resolve, reject) => {
+        validateNotesID(notesID);
+        
+        const noteRef = ref(database, `notes/${notesID}`);
+        onValue(noteRef, (snapshot) => {
+            const data = snapshot.val();
+            if (!data) {
+                reject(new DatabaseError('Note not found', 404));
+            } else {
+                resolve(data);
+            }
+        }, error => {
+            reject(new DatabaseError(error.message, 500));
+        });
     });
 }
 
-function getDataFromDatabase(notesID, updateStarCount) {
-    const starCountRef = ref(database, `notes/${notesID}`);
-    onValue(starCountRef, (snapshot) => {
-        const data = snapshot.val();
-        updateStarCount(data);
-    }, error => {
-        console.error("Error reading data:", error);
-    });
-}
-
-function getAllData(updateStarCount) {
-    const starCountRef = ref(database, '/notes');
-    onValue(starCountRef, (snapshot) => {
-        const data = snapshot.val();
-        updateStarCount(data);
-    }, error => {
-        console.error("Error reading data:", error);
+function getAllData() {
+    return new Promise((resolve, reject) => {
+        const notesRef = ref(database, '/notes');
+        onValue(notesRef, (snapshot) => {
+            const data = snapshot.val();
+            if (!data) {
+                reject(new DatabaseError('No notes found', 404));
+            } else {
+                resolve(data);
+            }
+        }, error => {
+            reject(new DatabaseError(error.message, 500));
+        });
     });
 }
 
 async function updateData(notesID, note, time) {
-    const db = database;
-    const updates = {};
-    updates[`/notes/${notesID}/note`] = note;
-    updates[`/notes/${notesID}/time`] = time;
-
     try {
-        await update(ref(db), updates);
-        console.log(`Data updated successfully for notesID: ${notesID}`);
+        validateNotesID(notesID);
+        validateNote(note);
+
+        const updates = {
+            [`/notes/${notesID}/note`]: note,
+            [`/notes/${notesID}/time`]: time,
+            [`/notes/${notesID}/lastUpdated`]: Date.now()
+        };
+
+        await update(ref(database), updates);
+        return { success: true };
     } catch (error) {
-        console.error("Error updating data:", error);
+        throw new DatabaseError(error.message, 500);
     }
 }
 
-module.exports = { writeUserData, getDataFromDatabase, getAllData, updateData };
+module.exports = {
+    writeUserData,
+    getDataFromDatabase,
+    getAllData,
+    updateData,
+    DatabaseError
+};
